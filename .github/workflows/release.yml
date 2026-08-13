@@ -1,22 +1,32 @@
 name: Release
 
-# Publishes to npm when a v* tag is pushed, e.g. `git tag v0.1.0 && git push --tags`.
-# The full verification suite runs first: a tag that fails CI does not publish.
+# One button. Pick a bump, and CI verifies, versions, tags, publishes, pushes.
+#
+# There is deliberately no tag trigger: this workflow creates the tag itself,
+# so a tag trigger would race with it and try to publish the same version twice.
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
+    inputs:
+      bump:
+        description: Semver bump to apply before publishing
+        required: true
+        default: patch
+        type: choice
+        options: [patch, minor, major]
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      # Push the version commit and its tag back to main.
+      contents: write
       # Trusted publishing: npm mints a short-lived credential from this OIDC
       # token, so there is no long-lived NPM_TOKEN to leak or rotate.
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -31,16 +41,8 @@ jobs:
 
       - run: npm ci
 
-      # The tag is the source of truth for what gets published; refuse a
-      # mismatch rather than publishing a version nobody asked for.
-      - name: Check package version matches the tag
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          tag="${GITHUB_REF_NAME#v}"
-          pkg="$(node -p "require('./package.json').version")"
-          echo "tag=$tag package.json=$pkg"
-          test "$tag" = "$pkg"
-
+      # Everything is verified before the version moves, so a failing check
+      # leaves no orphan bump behind.
       - run: npm run typecheck
       - run: npm test
         env:
@@ -49,6 +51,23 @@ jobs:
       - run: node scripts/smoke.mjs
       - run: npm run scoreboard:check
 
-      # No NODE_AUTH_TOKEN: authentication comes from the OIDC token above, and
-      # npm attaches a provenance attestation automatically.
+      - name: Bump version and tag
+        id: bump
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          version="$(npm version '${{ inputs.bump }}' -m 'Release v%s')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Bumped to $version"
+
+      # Publish before pushing: if this fails, main keeps the old version and
+      # the run can simply be repeated. The reverse order would strand a
+      # version in git that does not exist on npm.
       - run: npm publish --access public
+
+      - name: Push the version commit and tag
+        run: git push origin HEAD:main --follow-tags
+
+      - name: Summary
+        run: |
+          echo "Published ${{ steps.bump.outputs.version }} to npm and pushed the tag." >> "$GITHUB_STEP_SUMMARY"
