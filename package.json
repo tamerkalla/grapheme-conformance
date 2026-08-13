@@ -1,0 +1,72 @@
+{
+  "name": "grapheme-conformance",
+  "version": "0.1.0",
+  "description": "Score any JavaScript grapheme segmenter against Unicode's official GraphemeBreakTest.txt. Find out which string splitters are wrong, and about what.",
+  "keywords": [
+    "unicode",
+    "grapheme",
+    "uax29",
+    "text-segmentation",
+    "conformance",
+    "emoji",
+    "i18n",
+    "intl-segmenter",
+    "testing",
+    "javascript"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tamerkalla/grapheme-conformance.git"
+  },
+  "homepage": "https://github.com/tamerkalla/grapheme-conformance#readme",
+  "bugs": {
+    "url": "https://github.com/tamerkalla/grapheme-conformance/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "grapheme-conformance": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "vectors",
+    "README.md",
+    "SCOREBOARD.md",
+    "VERIFY.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prescoreboard": "npm run build",
+    "scoreboard": "node scripts/scoreboard.mjs",
+    "scoreboard:check": "npm run build && node scripts/check-scoreboard.mjs",
+    "smoke": "npm run build && node scripts/smoke.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "grapheme-splitter": "1.0.4",
+    "graphemer": "1.4.0",
+    "runes2": "1.1.4",
+    "tsup": "8.3.5",
+    "typescript": "5.7.2",
+    "unicode-segmenter": "0.17.3",
+    "vitest": "2.1.8"
+  }
+}
