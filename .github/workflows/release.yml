@@ -1,0 +1,43 @@
+name: Release
+
+# Publishes to npm when a v* tag is pushed, e.g. `git tag v0.1.0 && git push --tags`.
+# The full verification suite runs first: a tag that fails CI does not publish.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      # The tag is the source of truth for what gets published; refuse a
+      # mismatch rather than publishing a version nobody asked for.
+      - name: Check package version matches the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          echo "tag=$tag package.json=$pkg"
+          test "$tag" = "$pkg"
+
+      - run: npm run typecheck
+      - run: npm test
+        env:
+          GRAPHEME_CONFORMANCE_STRICT_ICU: '1'
+      - run: npm run build
+      - run: node scripts/smoke.mjs
+      - run: npm run scoreboard:check
+
+      - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
