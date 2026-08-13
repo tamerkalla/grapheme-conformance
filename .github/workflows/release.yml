@@ -10,6 +10,11 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Trusted publishing: npm mints a short-lived credential from this OIDC
+      # token, so there is no long-lived NPM_TOKEN to leak or rotate.
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,6 +22,12 @@ jobs:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
+
+      # Node 22 ships npm 10, which predates OIDC trusted publishing.
+      - name: Use an npm that supports trusted publishing
+        run: |
+          npm install -g npm@latest
+          npm --version
 
       - run: npm ci
 
@@ -38,6 +49,6 @@ jobs:
       - run: node scripts/smoke.mjs
       - run: npm run scoreboard:check
 
+      # No NODE_AUTH_TOKEN: authentication comes from the OIDC token above, and
+      # npm attaches a provenance attestation automatically.
       - run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
