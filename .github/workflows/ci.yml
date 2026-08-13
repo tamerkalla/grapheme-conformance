@@ -21,6 +21,11 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+        # Node 22's ICU carries the deviation the baseline was measured on, so
+        # there the Intl.Segmenter lock must assert rather than skip. Node 18
+        # ships an ICU without it and scores 1187/1093; those rows skip.
+        env:
+          GRAPHEME_CONFORMANCE_STRICT_ICU: ${{ matrix.node == 22 && '1' || '' }}
       - run: npm run build
       - run: node scripts/smoke.mjs
 

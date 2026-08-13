@@ -4,13 +4,27 @@ import { score, vectors } from '../src/index';
 import { segmenterById, segmenters } from '../scripts/segmenters.mjs';
 
 /**
- * `Intl.Segmenter` is scored by whatever ICU the host Node ships, so its
- * numbers are only the specified ones once ICU implements Unicode 15.1 (the
- * release that added GB9c). Node 18 and 20 ship older ICU; the pure-JS
- * libraries below are pinned and assert unconditionally on every Node.
+ * `Intl.Segmenter` is scored by whatever ICU the host Node ships, so unlike the
+ * pinned pure-JS libraries its numbers move with the runtime.
+ *
+ * The baseline's `Intl.Segmenter` row was measured on an ICU that splits
+ * `2701 200D 2701` — the known deviation. Measured across the CI matrix:
+ *
+ *   Node 18.20.8  no deviation, scores 1187/1187 and 1093/1093
+ *   Node 20.x     deviation present, scores 1186 and 1092
+ *   Node 22.22.2  deviation present, scores 1186 and 1092
+ *
+ * So the runtime is probed for that deviation rather than for a Unicode
+ * version: every Node in the matrix reports Unicode 15.1 or later, which does
+ * not distinguish them. Runtimes without it skip the Intl rows.
+ *
+ * Setting GRAPHEME_CONFORMANCE_STRICT_ICU=1 asserts them regardless, so the
+ * lock cannot quietly evaporate into a skip. CI sets it on Node 22.
  */
-const icuUnicode = Number.parseFloat(process.versions.unicode ?? '0');
-const icuIsModern = Number.isFinite(icuUnicode) && icuUnicode >= 15.1;
+const intlDeviates =
+  [...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment('✁‍✁')].length === 2;
+const strictIcu = process.env.GRAPHEME_CONFORMANCE_STRICT_ICU === '1';
+const scoreIntl = intlDeviates || strictIcu;
 
 /** The verified baseline. See README §2. */
 const BASELINE: Record<string, Record<string, number>> = {
@@ -41,7 +55,7 @@ describe('baseline lock', () => {
 
       for (const [id, passed] of Object.entries(row)) {
         const isIntl = id === 'intl-segmenter';
-        it.skipIf(isIntl && !icuIsModern)(`${id} passes exactly ${passed}`, () => {
+        it.skipIf(isIntl && !scoreIntl)(`${id} passes exactly ${passed}`, () => {
           const report = score(segmenterById(id).segment, vectors[version]);
           expect(report.passed).toBe(passed);
           expect(report.total).toBe(TOTALS[version]);
@@ -53,7 +67,7 @@ describe('baseline lock', () => {
 });
 
 describe('ICU signature', () => {
-  it.skipIf(!icuIsModern)('Intl.Segmenter fails exactly one 15.1.0 case: 2701 200D 2701', () => {
+  it.skipIf(!scoreIntl)('Intl.Segmenter fails exactly one 15.1.0 case: 2701 200D 2701', () => {
     const report = score(segmenterById('intl-segmenter').segment, vectors['15.1.0']);
     expect(report.failures).toHaveLength(1);
     expect(report.failures[0].inputHex).toBe('2701 200D 2701');
@@ -145,8 +159,9 @@ describe('everyday panel', () => {
   for (const { name, input, counts } of PANEL) {
     for (const { id, segment } of segmenters) {
       const expected = counts[id] ?? 1;
-      const isIntl = id === 'intl-segmenter';
-      it.skipIf(isIntl && !icuIsModern)(`${name}: ${id} yields ${expected}`, () => {
+      // Ungated: no panel input touches the ICU deviation, and every row holds
+      // on Node 18, 20 and 22 alike.
+      it(`${name}: ${id} yields ${expected}`, () => {
         expect(segment(input)).toHaveLength(expected);
       });
     }

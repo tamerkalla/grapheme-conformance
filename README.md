@@ -41,7 +41,9 @@ Cases passed:
 | `runes2@1.1.4` | 730 | 695 |
 
 `Intl.Segmenter`'s single failure is the input `2701 200D 2701`, a known ICU
-deviation.
+deviation — and one that arrived with a later ICU rather than an earlier one.
+Node 18.20.8 ships an ICU without it and passes every case (`1187` and `1093`);
+Node 20 and 22 split that input and score `1186` and `1092`.
 
 ## Install
 
@@ -148,8 +150,9 @@ What the numbers do show is that the disagreements are not exotic: they land on
 ordinary Devanagari.
 
 `Intl.Segmenter` is scored against whatever ICU the host Node ships, so its row
-moves with the runtime. The pure-JS libraries are pinned to exact versions and
-score identically everywhere.
+moves with the runtime, and not monotonically: Node 18.20.8 scores higher than
+Node 22 because the `2701 200D 2701` deviation is a newer ICU behaviour. The
+pure-JS libraries are pinned to exact versions and score identically everywhere.
 
 ## Verifying this build
 

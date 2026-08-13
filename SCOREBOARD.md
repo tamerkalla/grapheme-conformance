@@ -11,9 +11,6 @@ version. Case counts are in the column headers.
 | `grapheme-splitter` | 597/602 (99.17%) | 1175/1187 (98.99%) | 1081/1093 (98.90%) | 746/766 (97.39%) |
 | `runes2` | 412/602 (68.44%) | 730/1187 (61.50%) | 695/1093 (63.59%) | 501/766 (65.40%) |
 
-These are counts, not grades. A lower number means a library disagrees with
-the answer key more often; what that costs you depends on the text you handle.
-
 ---
 
 Generated 2026-08-13 by `npm run scoreboard`. Versions under test:
@@ -26,5 +23,5 @@ Generated 2026-08-13 by `npm run scoreboard`. Versions under test:
 | `grapheme-splitter` | 1.0.4 |
 | `runes2` | 1.1.4 |
 
-`Intl.Segmenter` is scored against whatever ICU the host Node ships, so its
-row moves with the runtime; the pure-JS libraries do not.
+`Intl.Segmenter` is scored against the host ICU, so its row depends on the
+runtime the scoreboard was generated on. The other rows do not.

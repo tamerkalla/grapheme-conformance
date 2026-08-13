@@ -28,11 +28,21 @@ check is the one before the slash. If all ten match, the build is correct.
 ## One caveat, and it is the only one
 
 `Intl.Segmenter` is not a fixed library. It is scored against whatever ICU the
-host Node ships, so its two numbers are `1186` and `1092` only on a Node whose
-ICU implements Unicode 15.1 or later — Node 22 does, Node 18 and 20 do not.
-The other four rows are pinned to exact versions and hold on every Node.
+host Node ships, so its row moves with the runtime. Measured across the CI
+matrix:
 
-Verified on Node 22.22.2 (ICU 78.2, Unicode 17.0).
+| runtime | 15.1.0 | 16.0.0 | `2701 200D 2701` |
+|---|---|---|---|
+| Node 22.22.2 (ICU 78.2) | 1186 | 1092 | split, the known deviation |
+| Node 20.x | 1186 | 1092 | split |
+| Node 18.20.8 | 1187 | 1093 | not split |
+
+Run `npm run scoreboard` on Node 22 or 20 to get the two baseline numbers. On
+Node 18 the `Intl.Segmenter` row reads `1187` and `1093` instead: that ICU
+predates the deviation and passes every case. The other four rows are pinned to
+exact versions and hold identically on every Node.
+
+The baseline was verified on Node 22.22.2 (ICU 78.2, Unicode 17.0).
 
 ## Everything else
 
