@@ -4,6 +4,10 @@ on:
   push:
     branches: ['**']
   pull_request:
+  # The release job pushes its version commit with GITHUB_TOKEN, and GitHub
+  # does not retrigger workflows for those pushes. This lets that commit be
+  # verified on demand rather than inheriting its parent's status.
+  workflow_dispatch:
 
 jobs:
   test:
