@@ -141,13 +141,7 @@ Each failure carries a best-effort `rule`: `GB9c` (Indic conjunct), `GB11`
 It inspects the input for characteristic code points; it does not implement
 UAX #29 and does not prove which rule an implementation actually got wrong.
 
-## A note on the numbers
-
-The scoreboard states counts. It does not rank or grade, and a lower number is
-not automatically a reason to switch libraries — segmenters trade conformance
-against size and speed, and which cases matter depends on the text you handle.
-What the numbers do show is that the disagreements are not exotic: they land on
-ordinary Devanagari.
+## Intl.Segmenter and the host ICU
 
 `Intl.Segmenter` is scored against whatever ICU the host Node ships, so its row
 moves with the runtime, and not monotonically: Node 18.20.8 scores higher than
