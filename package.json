@@ -1,6 +1,6 @@
 {
   "name": "grapheme-conformance",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Score any JavaScript grapheme segmenter against Unicode's official GraphemeBreakTest.txt. Find out which string splitters are wrong, and about what.",
   "keywords": [
     "unicode",
