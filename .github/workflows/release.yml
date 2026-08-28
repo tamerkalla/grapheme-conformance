@@ -1,18 +1,27 @@
 name: Release
 
-# One button. Pick a bump, and CI verifies, versions, tags, publishes, pushes.
+# push to main      fires on every push, but releases only when package.json
+#                   still reads 0.0.0 (the pre-release placeholder). Every
+#                   later push is a verify-only no-op release-wise.
+# workflow_dispatch every real release, taking bump and auth as inputs.
 #
-# There is deliberately no tag trigger: this workflow creates the tag itself,
-# so a tag trigger would race with it and try to publish the same version twice.
+# No tag trigger. This workflow creates the tag itself — a tag trigger
+# would race it and try to publish the same version twice.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       bump:
         description: Semver bump to apply before publishing
-        required: true
         default: patch
         type: choice
         options: [patch, minor, major]
+      auth:
+        description: 'oidc = trusted publishing. token = FIRST PUBLISH ONLY.'
+        type: choice
+        default: oidc
+        options: [oidc, token]
 
 jobs:
   publish:
@@ -27,11 +36,46 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # One step decides everything, so every later step is a string
+      # comparison. ubuntu-latest ships Node, so this runs before setup-node.
+      - name: Plan
+        id: plan
+        run: |
+          v=$(node -p "require('./package.json').version")
+          echo "version_before=$v" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "release=true"             >> "$GITHUB_OUTPUT"
+            echo "bump=${{ inputs.bump }}"  >> "$GITHUB_OUTPUT"
+            echo "auth=${{ inputs.auth }}"  >> "$GITHUB_OUTPUT"
+          elif [ "$v" = "0.0.0" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "bump=minor"   >> "$GITHUB_OUTPUT"
+            echo "auth=token"   >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "bump=none"     >> "$GITHUB_OUTPUT"
+            echo "auth=none"     >> "$GITHUB_OUTPUT"
+          fi
+
+      # Two setup steps, not one. Supplying a registry URL to setup-node makes
+      # it write an .npmrc carrying a token placeholder and export that
+      # variable JOB-WIDE. npm then finds a configured credential, never
+      # attempts the OIDC exchange, and authenticates as nobody. So the OIDC
+      # path must not carry that input at all. npm defaults to
+      # registry.npmjs.org regardless, so nothing is lost. Do not add it back.
       - uses: actions/setup-node@v4
+        if: ${{ steps.plan.outputs.auth == 'token' }}
         with:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
+
+      - uses: actions/setup-node@v4
+        if: ${{ steps.plan.outputs.auth != 'token' }}
+        with:
+          node-version: 22
+          cache: npm
 
       # Node 22 ships npm 10, which predates OIDC trusted publishing.
       - name: Use an npm that supports trusted publishing
@@ -53,21 +97,38 @@ jobs:
 
       - name: Bump version and tag
         id: bump
+        if: ${{ steps.plan.outputs.release == 'true' }}
         run: |
           git config user.name  'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
-          version="$(npm version '${{ inputs.bump }}' -m 'Release v%s')"
+          version="$(npm version '${{ steps.plan.outputs.bump }}' -m 'Release v%s')"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Bumped to $version"
 
       # Publish before pushing: if this fails, main keeps the old version and
       # the run can simply be repeated. The reverse order would strand a
       # version in git that does not exist on npm.
-      - run: npm publish --access public
+      - name: Publish (token)
+        if: ${{ steps.plan.outputs.release == 'true' && steps.plan.outputs.auth == 'token' }}
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # No auth variable in env: under OIDC it must be absent entirely,
+      # not empty. Do not add one back.
+      - name: Publish (OIDC)
+        if: ${{ steps.plan.outputs.release == 'true' && steps.plan.outputs.auth != 'token' }}
+        run: npm publish --access public
 
       - name: Push the version commit and tag
+        if: ${{ steps.plan.outputs.release == 'true' }}
         run: git push origin HEAD:main --follow-tags
 
-      - name: Summary
-        run: |
-          echo "Published ${{ steps.bump.outputs.version }} to npm and pushed the tag." >> "$GITHUB_STEP_SUMMARY"
+      # Last, deliberately: npm and git are both already correct by the time
+      # this runs, so a failure here leaves the published package and the
+      # pushed tag untouched and the release can be made by hand from the tag.
+      - name: Create GitHub Release
+        if: ${{ steps.plan.outputs.release == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "v${{ steps.bump.outputs.version }}" --title "v${{ steps.bump.outputs.version }}" --generate-notes

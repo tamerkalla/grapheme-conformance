@@ -2,6 +2,11 @@
 
 **Your string splitter is probably wrong about Hindi.**
 
+[![build](https://github.com/tamerkalla/grapheme-conformance/actions/workflows/release.yml/badge.svg)](https://github.com/tamerkalla/grapheme-conformance/actions/workflows/release.yml)
+[![npm](https://img.shields.io/npm/v/grapheme-conformance.svg)](https://www.npmjs.com/package/grapheme-conformance)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![provenance](https://img.shields.io/badge/provenance-attested-brightgreen.svg)](https://www.npmjs.com/package/grapheme-conformance)
+
 Unicode publishes `GraphemeBreakTest.txt`: a machine-readable answer key that
 says exactly where a string may be split into user-perceived characters. This
 package scores any JavaScript grapheme segmenter against it, tells you which
