@@ -50,18 +50,25 @@ Expected output:
 
 `Intl.Segmenter` is not a fixed library. It is scored against whatever ICU the
 host Node ships, so its row moves with the runtime. Measured across the CI
-matrix:
+matrix, against these two older keys:
 
 | runtime | 15.1.0 | 16.0.0 | `2701 200D 2701` |
 |---|---|---|---|
-| Node 22.22.2 (ICU 78.2) | 1186 | 1092 | split, the known deviation |
-| Node 20.x | 1186 | 1092 | split |
-| Node 18.20.8 | 1187 | 1093 | not split |
+| Node 22.22.2 (ICU 78.2) | 1186 | 1092 | two clusters |
+| Node 20.x | 1186 | 1092 | two clusters |
+| Node 18.20.8 | 1187 | 1093 | one cluster |
 
 Run the command above on Node 22 or 20 to get the expected output above. On
-Node 18 the `Intl.Segmenter` value reads `1187` and `1093` instead: that ICU
-predates the deviation and passes every case. The other four values are
-pinned to exact library versions and hold identically on every Node.
+Node 18 the `Intl.Segmenter` value reads `1187` and `1093` instead. The other
+four values are pinned to exact library versions and hold identically on
+every Node.
+
+That single differing case is not an ICU bug. Unicode 17.0 removed U+2701
+from `Extended_Pictographic`, so GB11 stopped applying and two clusters became
+the correct answer; newer ICU implements that change and these two older keys
+predate it. Scored against `17.0.0`, which is what the CLI uses by default,
+ICU on Node 22 passes all 766 cases. Score an implementation against the key
+it targets.
 
 The baseline was verified on Node 22.22.2 (ICU 78.2, Unicode 17.0).
 
