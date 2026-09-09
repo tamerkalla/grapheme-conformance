@@ -29,9 +29,9 @@ for (const [flavor, mod] of [
   assert.deepEqual(versions.sort(), ['15.0.0', '15.1.0', '16.0.0', '17.0.0']);
   assert.equal(mod.vectors['15.1.0'].length, 1187);
 
-  const report = mod.score(segment, mod.vectors['16.0.0']);
-  assert.equal(report.total, 1093);
-  assert.ok(report.passed > 1000, `${flavor}: implausible pass count ${report.passed}`);
+  const report = mod.score(segment, mod.vectors['17.0.0']);
+  assert.equal(report.total, 766);
+  assert.ok(report.passed > 700, `${flavor}: implausible pass count ${report.passed}`);
   assert.equal(report.passed + report.failures.length, report.total);
 
   const thrower = mod.score(() => {
@@ -40,7 +40,7 @@ for (const [flavor, mod] of [
   assert.equal(thrower.passed, 0);
 
   console.log(
-    `${flavor}: ok  Intl.Segmenter ${report.passed}/${report.total} on 16.0.0`,
+    `${flavor}: ok  Intl.Segmenter ${report.passed}/${report.total} on 17.0.0`,
   );
 }
 

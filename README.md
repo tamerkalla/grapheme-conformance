@@ -45,10 +45,22 @@ Cases passed:
 | `grapheme-splitter@1.0.4` | 1175 | 1081 |
 | `runes2@1.1.4` | 730 | 695 |
 
-`Intl.Segmenter`'s single failure is the input `2701 200D 2701`, a known ICU
-deviation — and one that arrived with a later ICU rather than an earlier one.
-Node 18.20.8 ships an ICU without it and passes every case (`1187` and `1093`);
-Node 20 and 22 split that input and score `1186` and `1092`.
+The one case `Intl.Segmenter` misses in both columns is `2701 200D 2701`, and
+it is an artefact of the answer key, not a bug in ICU. Unicode 17.0 removed
+U+2701 from `Extended_Pictographic`, so GB11 no longer applies and the correct
+result became **two** clusters. Scored against the `17.0.0` key, ICU on Node 22
+passes every case:
+
+| implementation | U17.0.0 (766) |
+|---|---|
+| `Intl.Segmenter` (ICU, Node 22) | 766 |
+| `unicode-segmenter@0.17.3` | 766 |
+| `graphemer@1.4.0` | 749 |
+| `grapheme-splitter@1.0.4` | 746 |
+| `runes2@1.1.4` | 501 |
+
+Score an implementation against the key it targets. A current segmenter judged
+by a superseded key reports failures it does not have.
 
 ## Install
 
@@ -62,23 +74,20 @@ Zero runtime dependencies. Dual ESM/CJS. Node 18+.
 
 ```sh
 npx grapheme-conformance --module unicode-segmenter/grapheme \
-  --export splitGraphemes --version 16.0.0
+  --export splitGraphemes
 ```
 
 ```
-unicode-segmenter/grapheme (splitGraphemes)  GraphemeBreakTest 16.0.0
-  passed  1092/1093  99.91%
-  failed  1
-
-  line  input                             want  got   rule
-  1105  2701 200D 2701                    1     2     -
+unicode-segmenter/grapheme (splitGraphemes)  GraphemeBreakTest 17.0.0
+  passed  766/766  100.00%
+  failed  0
 ```
 
 | flag | default | meaning |
 |---|---|---|
 | `--module` | required | module to load: a bare name, or a path relative to cwd |
 | `--export` | `default` | the export to score |
-| `--version` | `16.0.0` | vendored vectors: `15.0.0`, `15.1.0`, `16.0.0`, `17.0.0` |
+| `--version` | `17.0.0` | vendored vectors: `15.0.0`, `15.1.0`, `16.0.0`, `17.0.0` |
 | `--min` | `1.0` | minimum pass rate before exiting non-zero |
 | `--limit` | `10` | failing cases to print |
 
@@ -94,13 +103,13 @@ import { parseBreakTest, score, vectors } from 'grapheme-conformance';
 const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
 const report = score(
   (s) => [...segmenter.segment(s)].map((part) => part.segment),
-  vectors['16.0.0'],
+  vectors['17.0.0'],
 );
 
-report.passed; // 1092
-report.total; // 1093
-report.rate; // 0.999085...
-report.failures[0].inputHex; // '2701 200D 2701'
+report.passed; // 766
+report.total; // 766
+report.rate; // 1
+report.failures; // []
 ```
 
 ```ts
@@ -149,9 +158,12 @@ UAX #29 and does not prove which rule an implementation actually got wrong.
 ## Intl.Segmenter and the host ICU
 
 `Intl.Segmenter` is scored against whatever ICU the host Node ships, so its row
-moves with the runtime, and not monotonically: Node 18.20.8 scores higher than
-Node 22 because the `2701 200D 2701` deviation is a newer ICU behaviour. The
-pure-JS libraries are pinned to exact versions and score identically everywhere.
+moves with the runtime. Against the older keys the movement is not even
+monotonic: Node 18.20.8 scores `1187` and `1093` where Node 20 and 22 score
+`1186` and `1092`, because newer ICU implements the Unicode 17.0 property
+change that those keys predate. Against the `17.0.0` key every one of them is
+correct. The pure-JS libraries are pinned to exact versions and score
+identically everywhere.
 
 ## Verifying this build
 

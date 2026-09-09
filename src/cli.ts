@@ -65,7 +65,7 @@ async function main() {
     console.log(USAGE);
     process.exit(args.module ? 0 : 2);
   }
-  const version = args.version ?? '16.0.0';
+  const version = args.version ?? '17.0.0';
   const cases = vectors[version];
   if (!cases) fail(`Unknown version '${version}'. Have: ${Object.keys(vectors).join(', ')}`);
   const min = args.min === undefined ? 1 : Number(args.min);
